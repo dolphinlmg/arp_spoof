@@ -43,12 +43,15 @@ extern pcap_t* handle;
 extern uint8_t* myIp;
 extern uint8_t* myMac;
 
-void dumpPacket(uint8_t* packet, int length);
+void dumpPacket(uint8_t* packet, size_t length);
+void dumpPacket(const uint8_t* packet, size_t length);
 void usage();
 void setMac(session* data);
 void getMac(uint8_t* ip, uint8_t* mac);
 void setMyMac();
 void setMyIP();
 void setARPPacketHeaders(etherHeader* eth, arpHeader* arp, session* data);
+bool hasToRelay(session* data, const uint8_t* packet);
 uint8_t* parseIP(const char* ip);
+uint8_t* relayPacket(session* data, const uint8_t* packetm, size_t len);
 uint8_t* makeARPPacket(etherHeader* eth, arpHeader* arp);

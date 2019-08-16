@@ -23,6 +23,13 @@ int main(int argc, const char** argv)
     setMyIP();
     setMyMac();
 
+    for (int i = 0; i < 4; i++)
+        printf("%d.", *(myIp + i));
+    printf("\b \n");
+    for (int i = 0; i < 6; i++)
+        printf("%02x:", *(myMac + i));
+    printf("\b \n");
+
     char errbuf[PCAP_ERRBUF_SIZE];
     handle = pcap_open_live(dev, BUFSIZ, 1, 1, errbuf);
     if (handle == nullptr) {
@@ -40,21 +47,6 @@ int main(int argc, const char** argv)
         memcpy(tmp->sender_mac, "\x00\x00\x00\x00\x00\x00", 6);
         memcpy(tmp->target_mac, "\x00\x00\x00\x00\x00\x00", 6);
         sessions.push_back(tmp);
-    }
-
-    for (auto a : sessions){
-        for (int i = 0; i < 4; i++)
-            printf("%d.", *(a->sender_ip + i));
-        printf("\b \n");
-        for (int i = 0; i < 6; i++)
-            printf("%02x:", *(a->sender_mac + i));
-        printf("\b \n");
-        for (int i = 0; i < 4; i++)
-            printf("%d.", *(a->target_ip + i));
-        printf("\b \n");
-        for (int i = 0; i < 6; i++)
-            printf("%02x:", *(a->target_mac + i));
-        printf("\b \n");
     }
 
     for(auto a : sessions){
@@ -87,12 +79,31 @@ int main(int argc, const char** argv)
         printf("\b \n");
     }
 
+    int count = 0;
+
     while(true){
+        count ++;
         for (auto a : arpPackets){
-            dumpPacket(a, 42);
+            //dumpPacket(a, 42);
             pcap_sendpacket(handle, a, 42);
         }
-        sleep(1);
+        if (count < 5) continue;
+        for (int i = 0; i < 20; i++) {
+            struct pcap_pkthdr* header;
+            const uint8_t* packet;
+            int res = pcap_next_ex(handle, &header, &packet);
+            if (res == 0) continue;
+            if (res == -1 || res == -2) break;
+            for (auto a : sessions){
+                if(hasToRelay(a, packet)){
+                    uint8_t* relay = relayPacket(a, packet, header->len);
+                    dumpPacket(packet, header->len);
+                    dumpPacket(relay, header->len);
+                    pcap_sendpacket(handle, relay, header->len);
+                }
+            }
+        }
+         sleep(1);
     }
 
 }
