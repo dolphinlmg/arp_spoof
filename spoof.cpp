@@ -38,10 +38,10 @@ void getMac(uint8_t* ip, uint8_t* macPtr){
     etherHeader* eth = new etherHeader;
     arpHeader* arp = new arpHeader;
     session* data = new session;
-    memcpy(data->sender_mac, myMac, 6);
-    memcpy(data->sender_ip, myIp, 4);
-    memcpy(data->target_ip, ip, 4);
-    memcpy(data->target_mac, "\x00\x00\x00\x00\x00\x00", 6);
+    memcpy(data->target_mac, myMac, 6);
+    memcpy(data->target_ip, myIp, 4);
+    memcpy(data->sender_ip, ip, 4);
+    memcpy(data->sender_mac, "\x00\x00\x00\x00\x00\x00", 6);
     setARPPacketHeaders(eth, arp, data);
     arp->opcode = ntohs(1);                                 // change to arp request
     u_char* arpPacket = makeARPPacket(eth, arp);
@@ -56,7 +56,7 @@ void getMac(uint8_t* ip, uint8_t* macPtr){
         const etherHeader* getEth = reinterpret_cast<const etherHeader*>(packet);
         if(ntohs(getEth->ether_type) == 0x0806){
             const arpHeader* getArp = reinterpret_cast<const arpHeader*>(packet + 14);
-            if(!memcmp(getArp->sender_ip, data->target_ip, 4)){
+            if(!memcmp(getArp->sender_ip, data->sender_ip, 4)){
                 memcpy(macPtr, getArp->sender_mac, 6);
             }
         }
@@ -111,9 +111,9 @@ void setARPPacketHeaders(etherHeader* eth, arpHeader* arp, session* data){
     arp->protocol_size = 4;
     arp->opcode = ntohs(2);
     memcpy(arp->sender_mac, eth->sMac, 6);                              // my mac
-    memcpy(arp->sender_ip, data->sender_ip, 4);                       // gateway ip
-    memcpy(arp->target_mac, data->target_mac, 6);                     // victim mac
-    memcpy(arp->target_ip, data->target_ip, 4);                       // victim ip
+    memcpy(arp->sender_ip, data->target_ip, 4);                       // sender ip(target send arp pak)
+    memcpy(arp->target_mac, data->sender_mac, 6);                     // target mac(sender recv arp pak)
+    memcpy(arp->target_ip, data->sender_ip, 4);                       // target ip
 }
 void dumpPacket(uint8_t* packet, size_t length){
     for(size_t i = 0; i < length; i++){
@@ -139,7 +139,7 @@ void dumpPacket(const uint8_t* packet, size_t length){
 
 bool hasToRelay(session* data, const uint8_t* packet){
     const etherHeader* eth = reinterpret_cast<const etherHeader*>(packet);
-    if(!memcmp(eth->dMac, myMac, 6) && !memcmp(eth->sMac, data->target_mac, 6) && eth->ether_type != ntohs(0x0806))
+    if(!memcmp(eth->dMac, myMac, 6) && !memcmp(eth->sMac, data->sender_mac, 6) && eth->ether_type != ntohs(0x0806))
         return true;
     return false;
 }
@@ -148,7 +148,7 @@ uint8_t* relayPacket(session* data, const uint8_t* packet, size_t len){
     uint8_t* ret = new uint8_t[len];
     memcpy(ret, packet, len);
     etherHeader* eth = reinterpret_cast<etherHeader*>(ret);
-    memcpy(eth->dMac, data->sender_mac, 6);
+    memcpy(eth->dMac, data->target_mac, 6);
     memcpy(eth->sMac, myMac, 6);
     return ret;
 }
