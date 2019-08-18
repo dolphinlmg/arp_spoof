@@ -58,6 +58,7 @@ void getMac(uint8_t* ip, uint8_t* macPtr){
             const arpHeader* getArp = reinterpret_cast<const arpHeader*>(packet + 14);
             if(!memcmp(getArp->sender_ip, data->sender_ip, 4)){
                 memcpy(macPtr, getArp->sender_mac, 6);
+                break;
             }
         }
     }
